@@ -47,7 +47,7 @@
 ### 5. Визуализация контекста системы — диаграмма С4
 
 ```markdown
-[Диаграмми контекста](URL)
+[Диаграмми контекста](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/current_smart_home_uml.puml)
 ```
 
 
