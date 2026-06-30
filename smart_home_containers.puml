@@ -1,0 +1,59 @@
+@startuml smart_home_containers
+
+!include ./c4_templates/C4_Container.puml
+
+title Диаграмма контейнеров - Умный дом
+
+' Внешние системы
+System_Ext(house1, "Дом 1", "Система отопления")
+System_Ext(house2, "Дом 2", "Система отопления")
+System_Ext(houseN, "Дом N", "Система отопления")
+System_Ext(payments, "Платёжная система", "Обрабатывает платежные транзакции")
+
+Person(users, "Пользователи", "Владельцы домов")
+
+Container_Boundary(smart_home, "Умный дом") {
+    Container(api_gateway, "API Gateway", "Go / Nginx", "Единая точка входа\nМаршрутизация\nАутентификация")
+    Container(sensors, "Управление датчиками", "Go", "Добавление/Удаление\nКоманды управления\nТелеметрия")
+    Container(monitoring, "Мониторинг датчиков", "Go", "Дашборды пользователей")
+    ContainerDb(postgres, "База данных", "PostgreSQL", "Персистентное хранилище")
+    Container(cache, "Кеш", "Redis", "Кеширование:\nТекущих показаний\nНастроек пользователей")
+    Container(queue, "Очередь сообщений", "RabbitMQ / Kafka", "Асинхронная обработка:\nПоказания датчиков\nКоманды управления")
+}
+
+' === Связи Person (через API Gateway) ===
+Rel(users, api_gateway, "Взаимодействует через", "HTTPS/Internet")
+Rel(api_gateway, sensors, "Маршрутизирует команды", "gRPC/HTTP")
+Rel(api_gateway, monitoring, "Маршрутизирует запросы", "gRPC/HTTP")
+
+' === Связи управления домами ===
+Rel(sensors, queue, "Публикует команды", "AMQP/Kafka")
+Rel(queue, house1, "Доставляет команды", "MQTT/WebSocket")
+Rel(queue, house2, "Доставляет команды", "MQTT/WebSocket")
+Rel(queue, houseN, "Доставляет команды", "MQTT/WebSocket")
+
+' === Телеметрия от домов ===
+Rel(house1, queue, "Отправляет телеметрию", "MQTT/WebSocket")
+Rel(house2, queue, "Отправляет телеметрию", "MQTT/WebSocket")
+Rel(houseN, queue, "Отправляет телеметрию", "MQTT/WebSocket")
+Rel(queue, sensors, "Передаёт телеметрию", "AMQP/Kafka")
+
+' === Сохранение данных ===
+Rel(sensors, postgres, "Сохраняет историю и настройки", "SQL")
+Rel(sensors, cache, "Обновляет кеш (текущие показания)", "Redis Protocol")
+
+' === Мониторинг (чтение) ===
+Rel(monitoring, cache, "Читает текущие показания (быстро)", "Redis Protocol")
+Rel(monitoring, postgres, "Читает исторические данные", "SQL")
+
+' === Платёжная система ===
+Rel(sensors, payments, "Инициирует платёж (подписка/услуги)", "HTTPS")
+Rel(payments, queue, "Возвращает статус транзакции", "AMQP/Kafka")
+Rel(queue, sensors, "Обновляет статус платежа", "AMQP/Kafka")
+
+' === Дополнительные связи ===
+Rel(cache, postgres, "Синхронизируется при изменении", "Redis Protocol")
+Rel(queue, monitoring, "Уведомляет о событиях (alerting)", "AMQP/Kafka")
+
+SHOW_LEGEND()
+@enduml
