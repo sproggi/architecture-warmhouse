@@ -59,7 +59,9 @@
 
 **Диаграмма контейнеров (Containers)**
 
-Добавьте диаграмму.
+```markdown
+[Диаграмми контейнеров](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/smart_home_containers.puml)
+```
 
 **Диаграмма компонентов (Components)**
 
