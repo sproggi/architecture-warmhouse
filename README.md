@@ -76,7 +76,11 @@
 
 **Диаграмма кода (Code)**
 
-Добавьте одну диаграмму или несколько.
+```markdown
+[Диаграмма кода sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors_code.puml)
+[Диаграмма классов для sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors_classes.puml)
+```
+
 
 # Задание 3. Разработка ER-диаграммы
 

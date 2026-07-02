@@ -1,0 +1,135 @@
+@startuml sensors_code_diagram
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма кода - Управление датчиками (Версия 1.0)
+
+Container_Boundary(sensors_internal, "Управление датчиками") {
+    
+    ' === Уровень API/Handlers ===
+    Component(http_server, "HTTP/gRPC Server", "Go (Gin/gRPC)", "Обработка входящих запросов")
+    
+    Component(device_handler, "Device Handler", "Go", "CRUD операции с устройствами")
+    Component(sensor_handler, "Sensor Handler", "Go", "CRUD операции с датчиками")
+    Component(command_handler_api, "Command Handler API", "Go", "Прием команд управления")
+    Component(telemetry_handler_api, "Telemetry Handler API", "Go", "Прием телеметрии")
+    
+    ' === Уровень сервисов (Business Logic) ===
+    Component(device_service, "Device Service", "Go", "Бизнес-логика устройств")
+    Component(sensor_service, "Sensor Service", "Go", "Бизнес-логика датчиков")
+    Component(command_service, "Command Service", "Go", "Обработка команд")
+    Component(telemetry_service, "Telemetry Service", "Go", "Обработка телеметрии")
+    Component(payment_service, "Payment Service", "Go", "Логика платежей")
+    Component(validation_service, "Validation Service", "Go", "Валидация данных")
+    
+    ' === Уровень репозиториев (Data Access) ===
+    Component(device_repository, "Device Repository", "Go", "Работа с устройствами")
+    Component(sensor_repository, "Sensor Repository", "Go", "Работа с датчиками")
+    Component(telemetry_repository, "Telemetry Repository", "Go", "Работа с телеметрией")
+    Component(payment_repository, "Payment Repository", "Go", "Работа с платежами")
+    Component(user_repository, "User Repository", "Go", "Работа с пользователями")
+    
+    ' === Уровень интеграций ===
+    Component(queue_publisher, "Queue Publisher", "Go (RabbitMQ/Kafka)", "Публикация в очередь")
+    Component(queue_consumer, "Queue Consumer", "Go (RabbitMQ/Kafka)", "Потребление из очереди")
+    Component(cache_service, "Cache Service", "Go (Redis)", "Работа с кешем")
+    Component(payment_client, "Payment Client", "Go (HTTP)", "Взаимодействие с платежами")
+    Component(notification_client, "Notification Client", "Go", "Отправка уведомлений")
+    
+    ' === Утилиты ===
+    Component(logger, "Logger", "Go (Zap/Logrus)", "Логирование")
+    Component(metrics, "Metrics", "Go (Prometheus)", "Метрики")
+    Component(config, "Config", "Go (Viper)", "Конфигурация")
+    Component(validator, "Validator", "Go (go-playground)", "Валидация структур")
+    Component(middleware, "Middleware", "Go", "Аутентификация/Авторизация")
+    Component(error_handler, "Error Handler", "Go", "Обработка ошибок")
+    
+    ' === Модели данных (DTO) ===
+    Component(dto_models, "DTO Models", "Go Structs", "DeviceDTO, SensorDTO, CommandDTO")
+    Component(domain_models, "Domain Models", "Go Structs", "Device, Sensor, Telemetry")
+    Component(repository_models, "Repository Models", "Go Structs", "DB модели")
+}
+
+' === Внешние системы ===
+ContainerDb(postgres, "База данных", "PostgreSQL")
+ContainerDb(cache, "Кеш", "Redis")
+Container(queue, "Очередь сообщений", "RabbitMQ/Kafka")
+System_Ext(payments, "Платёжная система", "HTTPS")
+System_Ext(house, "Дом", "MQTT/WebSocket")
+
+' === Связи HTTP/gRPC Level ===
+Rel(http_server, device_handler, "Маршрутизирует /api/devices")
+Rel(http_server, sensor_handler, "Маршрутизирует /api/sensors")
+Rel(http_server, command_handler_api, "Маршрутизирует /api/commands")
+Rel(http_server, telemetry_handler_api, "Маршрутизирует /api/telemetry")
+
+' === Handler -> Service ===
+Rel(device_handler, device_service, "Вызывает бизнес-логику")
+Rel(sensor_handler, sensor_service, "Вызывает бизнес-логику")
+Rel(command_handler_api, command_service, "Вызывает бизнес-логику")
+Rel(telemetry_handler_api, telemetry_service, "Вызывает бизнес-логику")
+
+' === Service -> Repository ===
+Rel(device_service, device_repository, "CRUD операции")
+Rel(device_service, validation_service, "Валидация данных")
+Rel(device_service, cache_service, "Обновление кеша")
+Rel(device_service, queue_publisher, "Публикация событий")
+
+Rel(sensor_service, sensor_repository, "CRUD операции")
+Rel(sensor_service, validation_service, "Валидация данных")
+Rel(sensor_service, cache_service, "Обновление кеша")
+
+Rel(command_service, command_handler_api, "Валидация команд")
+Rel(command_service, queue_publisher, "Публикация команд")
+Rel(command_service, device_service, "Проверка устройств")
+Rel(command_service, logger, "Логирование команд")
+
+Rel(telemetry_service, telemetry_repository, "Сохранение телеметрии")
+Rel(telemetry_service, validation_service, "Валидация телеметрии")
+Rel(telemetry_service, cache_service, "Обновление кеша")
+Rel(telemetry_service, queue_publisher, "Публикация в очередь")
+
+Rel(payment_service, payment_client, "Вызов платежей")
+Rel(payment_service, payment_repository, "Сохранение платежей")
+Rel(payment_service, notification_client, "Уведомления о платежах")
+
+' === Repository -> Database/Cache ===
+Rel(device_repository, postgres, "SQL запросы", "pgx/sqlx")
+Rel(sensor_repository, postgres, "SQL запросы", "pgx/sqlx")
+Rel(telemetry_repository, postgres, "SQL запросы (batch insert)", "pgx/sqlx")
+Rel(payment_repository, postgres, "SQL запросы", "pgx/sqlx")
+Rel(user_repository, postgres, "SQL запросы", "pgx/sqlx")
+
+' === Cache Service ===
+Rel(cache_service, cache, "Redis операции", "go-redis")
+Rel(cache_service, device_repository, "Синхронизация")
+Rel(cache_service, sensor_repository, "Синхронизация")
+
+' === Queue Integration ===
+Rel(queue_publisher, queue, "Публикация", "AMQP/Kafka")
+Rel(queue_consumer, queue, "Потребление", "AMQP/Kafka")
+Rel(queue_consumer, telemetry_service, "Обработка полученных данных")
+
+' === Payment Integration ===
+Rel(payment_client, payments, "HTTP запросы", "REST API")
+Rel(payments, queue, "Возврат статуса", "AMQP/Kafka")
+Rel(queue_consumer, payment_service, "Обновление статуса")
+
+' === House Integration ===
+Rel(queue_publisher, house, "Отправка команд", "MQTT/WebSocket")
+Rel(house, queue, "Отправка телеметрии", "MQTT/WebSocket")
+Rel(queue_consumer, telemetry_service, "Получение телеметрии")
+
+' === Cross-cutting concerns ===
+Rel(http_server, middleware, "Применение middleware")
+Rel(middleware, validator, "Валидация запросов")
+Rel(middleware, logger, "Логирование запросов")
+Rel(middleware, metrics, "Сбор метрик")
+Rel(middleware, error_handler, "Обработка ошибок")
+
+Rel(device_service, dto_models, "Использует DTO")
+Rel(device_service, domain_models, "Использует Domain")
+Rel(device_repository, repository_models, "Использует Repository Models")
+
+SHOW_LEGEND()
+@enduml
