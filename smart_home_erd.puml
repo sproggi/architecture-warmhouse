@@ -1,0 +1,441 @@
+@startuml smart_home_erd
+
+!include ./c4_templates/C4_Component.puml
+
+title ER-диаграмма - Умный дом
+
+' === Основные сущности ===
+entity "users" as users {
+    * id : UUID [PK]
+    --
+    * email : VARCHAR(255) [UK]
+    * phone : VARCHAR(20)
+    * first_name : VARCHAR(100)
+    * last_name : VARCHAR(100)
+    * password_hash : VARCHAR(255)
+    * role : user_role
+    * status : user_status
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * last_login : TIMESTAMP
+    * is_verified : BOOLEAN
+    * verification_token : VARCHAR(255)
+    * reset_token : VARCHAR(255)
+    * reset_token_expiry : TIMESTAMP
+    * preferences : JSONB
+    * timezone : VARCHAR(50)
+    * language : VARCHAR(10)
+    --
+    indexes: idx_users_email, idx_users_phone
+}
+
+entity "houses" as houses {
+    * id : UUID [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * name : VARCHAR(100)
+    * address : TEXT
+    * city : VARCHAR(100)
+    * country : VARCHAR(50)
+    * postal_code : VARCHAR(20)
+    * timezone : VARCHAR(50)
+    * latitude : DECIMAL(10,8)
+    * longitude : DECIMAL(11,8)
+    * status : house_status
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * last_active : TIMESTAMP
+    * settings : JSONB
+    * is_active : BOOLEAN
+    --
+    indexes: idx_houses_user_id, idx_houses_status
+}
+
+entity "devices" as devices {
+    * id : UUID [PK]
+    --
+    * house_id : UUID [FK -> houses.id]
+    * name : VARCHAR(100)
+    * type : device_type
+    * manufacturer : VARCHAR(100)
+    * model : VARCHAR(100)
+    * serial_number : VARCHAR(100) [UK]
+    * firmware_version : VARCHAR(50)
+    * hardware_version : VARCHAR(50)
+    * protocol : communication_protocol
+    * ip_address : INET
+    * mac_address : MACADDR [UK]
+    * location : VARCHAR(100)
+    * room : VARCHAR(100)
+    * status : device_status
+    * battery_level : SMALLINT
+    * signal_strength : SMALLINT
+    * last_seen : TIMESTAMP
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * is_active : BOOLEAN
+    * configuration : JSONB
+    * metadata : JSONB
+    * pairing_code : VARCHAR(50)
+    * pairing_expiry : TIMESTAMP
+    --
+    indexes: idx_devices_house_id, idx_devices_serial, idx_devices_mac, idx_devices_status
+}
+
+entity "sensors" as sensors {
+    * id : UUID [PK]
+    --
+    * device_id : UUID [FK -> devices.id]
+    * name : VARCHAR(100)
+    * type : sensor_type
+    * unit : VARCHAR(20)
+    * location : VARCHAR(100)
+    * min_value : DECIMAL(10,2)
+    * max_value : DECIMAL(10,2)
+    * warning_threshold_low : DECIMAL(10,2)
+    * warning_threshold_high : DECIMAL(10,2)
+    * critical_threshold_low : DECIMAL(10,2)
+    * critical_threshold_high : DECIMAL(10,2)
+    * current_value : DECIMAL(10,2)
+    * current_value_updated : TIMESTAMP
+    * calibration_offset : DECIMAL(10,2)
+    * calibration_factor : DECIMAL(10,2)
+    * status : sensor_status
+    * is_active : BOOLEAN
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * last_calibration : TIMESTAMP
+    * accuracy : DECIMAL(5,2)
+    * precision : DECIMAL(5,2)
+    * metadata : JSONB
+    --
+    indexes: idx_sensors_device_id, idx_sensors_type, idx_sensors_status
+}
+
+entity "telemetry" as telemetry {
+    * id : BIGSERIAL [PK]
+    --
+    * sensor_id : UUID [FK -> sensors.id]
+    * device_id : UUID [FK -> devices.id]
+    * value : DECIMAL(10,2)
+    * value_raw : DECIMAL(10,2)
+    * timestamp : TIMESTAMP
+    * received_at : TIMESTAMP
+    * quality : quality_level
+    * is_valid : BOOLEAN
+    * validation_error : VARCHAR(255)
+    * anomaly_score : DECIMAL(5,2)
+    * is_anomaly : BOOLEAN
+    * source : telemetry_source
+    * batch_id : UUID
+    * metadata : JSONB
+    --
+    indexes: idx_telemetry_sensor_id, idx_telemetry_timestamp, idx_telemetry_device_id, idx_telemetry_batch_id
+}
+
+entity "commands" as commands {
+    * id : UUID [PK]
+    --
+    * device_id : UUID [FK -> devices.id]
+    * user_id : UUID [FK -> users.id]
+    * type : command_type
+    * payload : JSONB
+    * status : command_status
+    * priority : command_priority
+    * created_at : TIMESTAMP
+    * scheduled_at : TIMESTAMP
+    * executed_at : TIMESTAMP
+    * completed_at : TIMESTAMP
+    * result : JSONB
+    * error_message : TEXT
+    * retry_count : SMALLINT
+    * max_retries : SMALLINT
+    * timeout_seconds : INTEGER
+    * source : command_source
+    * metadata : JSONB
+    --
+    indexes: idx_commands_device_id, idx_commands_status, idx_commands_created_at, idx_commands_scheduled_at
+}
+
+entity "alerts" as alerts {
+    * id : UUID [PK]
+    --
+    * telemetry_id : BIGINT [FK -> telemetry.id]
+    * sensor_id : UUID [FK -> sensors.id]
+    * user_id : UUID [FK -> users.id]
+    * type : alert_type
+    * severity : alert_severity
+    * message : TEXT
+    * value : DECIMAL(10,2)
+    * threshold : DECIMAL(10,2)
+    * triggered_at : TIMESTAMP
+    * acknowledged_at : TIMESTAMP
+    * resolved_at : TIMESTAMP
+    * acknowledged_by : UUID [FK -> users.id]
+    * status : alert_status
+    * notification_sent : BOOLEAN
+    * notification_channels : JSONB
+    * metadata : JSONB
+    --
+    indexes: idx_alerts_telemetry_id, idx_alerts_sensor_id, idx_alerts_user_id, idx_alerts_status
+}
+
+entity "payments" as payments {
+    * id : UUID [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * amount : DECIMAL(10,2)
+    * currency : VARCHAR(3)
+    * type : payment_type
+    * status : payment_status
+    * transaction_id : VARCHAR(100) [UK]
+    * provider : payment_provider
+    * provider_reference : VARCHAR(100)
+    * description : TEXT
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * completed_at : TIMESTAMP
+    * refunded_at : TIMESTAMP
+    * refund_amount : DECIMAL(10,2)
+    * metadata : JSONB
+    * webhook_data : JSONB
+    --
+    indexes: idx_payments_user_id, idx_payments_transaction_id, idx_payments_status
+}
+
+entity "subscriptions" as subscriptions {
+    * id : UUID [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * plan_id : UUID [FK -> plans.id]
+    * status : subscription_status
+    * started_at : TIMESTAMP
+    * expires_at : TIMESTAMP
+    * cancelled_at : TIMESTAMP
+    * auto_renew : BOOLEAN
+    * last_payment_id : UUID [FK -> payments.id]
+    * billing_cycle : billing_cycle
+    * metadata : JSONB
+    --
+    indexes: idx_subscriptions_user_id, idx_subscriptions_status, idx_subscriptions_expires_at
+}
+
+entity "plans" as plans {
+    * id : UUID [PK]
+    --
+    * name : VARCHAR(100)
+    * code : VARCHAR(50) [UK]
+    * description : TEXT
+    * price : DECIMAL(10,2)
+    * currency : VARCHAR(3)
+    * interval : plan_interval
+    * interval_count : INTEGER
+    * features : JSONB
+    * max_devices : INTEGER
+    * max_houses : INTEGER
+    * storage_days : INTEGER
+    * is_active : BOOLEAN
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * metadata : JSONB
+}
+
+entity "audit_logs" as audit_logs {
+    * id : BIGSERIAL [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * action : audit_action
+    * resource_type : resource_type
+    * resource_id : UUID
+    * changes : JSONB
+    * ip_address : INET
+    * user_agent : TEXT
+    * performed_at : TIMESTAMP
+    * success : BOOLEAN
+    * error_message : TEXT
+    * metadata : JSONB
+    --
+    indexes: idx_audit_user_id, idx_audit_performed_at, idx_audit_resource
+}
+
+entity "schedules" as schedules {
+    * id : UUID [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * device_id : UUID [FK -> devices.id]
+    * name : VARCHAR(100)
+    * description : TEXT
+    * cron_expression : VARCHAR(100)
+    * timezone : VARCHAR(50)
+    * action_type : schedule_action
+    * action_payload : JSONB
+    * is_active : BOOLEAN
+    * last_run_at : TIMESTAMP
+    * next_run_at : TIMESTAMP
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * metadata : JSONB
+    --
+    indexes: idx_schedules_user_id, idx_schedules_device_id, idx_schedules_next_run
+}
+
+entity "scenes" as scenes {
+    * id : UUID [PK]
+    --
+    * user_id : UUID [FK -> users.id]
+    * house_id : UUID [FK -> houses.id]
+    * name : VARCHAR(100)
+    * description : TEXT
+    * actions : JSONB
+    * is_active : BOOLEAN
+    * is_favorite : BOOLEAN
+    * trigger_type : trigger_type
+    * trigger_config : JSONB
+    * last_triggered : TIMESTAMP
+    * created_at : TIMESTAMP
+    * updated_at : TIMESTAMP
+    * metadata : JSONB
+    --
+    indexes: idx_scenes_user_id, idx_scenes_house_id, idx_scenes_is_active
+}
+
+' === Enum Types ===
+enum user_role {
+    ADMIN
+    USER
+    SUPPORT
+    SERVICE
+}
+
+enum user_status {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+    DELETED
+}
+
+enum house_status {
+    ONLINE
+    OFFLINE
+    MAINTENANCE
+    DELETED
+}
+
+enum device_type {
+    THERMOSTAT
+    BOILER
+    HEATER
+    RADIATOR
+    TEMPERATURE_SENSOR
+    HUMIDITY_SENSOR
+    PRESSURE_SENSOR
+    LIGHT
+    SWITCH
+    PLUG
+    LOCK
+    CAMERA
+    MOTION_SENSOR
+    GAS_SENSOR
+    SMOKE_DETECTOR
+    DOOR_SENSOR
+    WINDOW_SENSOR
+    ENERGY_METER
+}
+
+enum sensor_type {
+    TEMPERATURE
+    HUMIDITY
+    PRESSURE
+    CO2
+    GAS
+    SMOKE
+    MOTION
+    LIGHT_LEVEL
+    VOLTAGE
+    CURRENT
+    POWER
+    ENERGY
+    WATER_FLOW
+    AIR_QUALITY
+}
+
+enum quality_level {
+    EXCELLENT
+    GOOD
+    FAIR
+    POOR
+    INVALID
+}
+
+enum alert_type {
+    HIGH_VALUE
+    LOW_VALUE
+    RAPID_CHANGE
+    NO_DATA
+    ANOMALY
+    DEVICE_OFFLINE
+    BATTERY_LOW
+    MAINTENANCE_REQUIRED
+}
+
+enum alert_severity {
+    INFO
+    WARNING
+    CRITICAL
+    EMERGENCY
+}
+
+enum payment_status {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+    REFUNDED
+    PARTIALLY_REFUNDED
+}
+
+enum command_status {
+    PENDING
+    SCHEDULED
+    PROCESSING
+    EXECUTED
+    FAILED
+    CANCELLED
+    TIMEOUT
+}
+
+' === Relationships ===
+users ||--o{ houses : "owns"
+users ||--o{ devices : "owns"
+users ||--o{ commands : "initiates"
+users ||--o{ payments : "makes"
+users ||--o{ subscriptions : "has"
+users ||--o{ audit_logs : "performs"
+users ||--o{ alerts : "receives"
+users ||--o{ schedules : "creates"
+users ||--o{ scenes : "creates"
+
+houses ||--o{ devices : "contains"
+houses ||--o{ scenes : "has"
+
+devices ||--o{ sensors : "has"
+devices ||--o{ telemetry : "generates"
+devices ||--o{ commands : "receives"
+devices ||--o{ schedules : "has"
+
+sensors ||--o{ telemetry : "produces"
+sensors ||--o{ alerts : "triggers"
+
+telemetry ||--o{ alerts : "triggers"
+
+payments ||--|| subscriptions : "last_payment"
+plans ||--o{ subscriptions : "defines"
+
+' === Composite Types ===
+note right of telemetry : JSONB metadata содержит:\n- raw_data\n- processing_info\n- device_health\n- network_latency
+
+note right of devices : JSONB configuration содержит:\n- polling_interval\n- reporting_interval\n- thresholds\n- calibration_params
+
+note right of users : JSONB preferences содержит:\n- dashboard_settings\n- notification_preferences\n- theme\n- locale
+
+@enduml
