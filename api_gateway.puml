@@ -1,0 +1,37 @@
+@startuml api_gateway_components
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - API Gateway
+
+Container(sensors, "Управление датчиками", "Go", "Добавление/Удаление\nКоманды управления\nТелеметрия")
+Container(monitoring, "Мониторинг датчиков", "Go", "Дашборды пользователей")
+
+Container_Boundary(api_gateway_internal, "API Gateway") {
+    Component(auth_middleware, "Auth Middleware", "Go", "Аутентификация и авторизация запросов")
+    Component(rate_limiter, "Rate Limiter", "Go", "Ограничение частоты запросов")
+    Component(router, "Request Router", "Go", "Маршрутизация на сервисы")
+    Component(request_validator, "Request Validator", "Go", "Валидация входящих запросов")
+    Component(logger, "Access Logger", "Go", "Логирование запросов")
+    Component(metrics_collector, "Metrics Collector", "Go", "Сбор метрик для мониторинга")
+}
+
+' Внешние системы
+Person(users, "Пользователи", "Владельцы домов")
+ContainerDb(redis_rate, "Redis", "Rate Limiting Storage")
+
+' Связи
+Rel(users, auth_middleware, "Отправляет запросы", "HTTPS")
+Rel(auth_middleware, rate_limiter, "После аутентификации")
+Rel(rate_limiter, redis_rate, "Проверяет лимиты", "Redis Protocol")
+Rel(rate_limiter, router, "После проверки лимитов")
+Rel(router, request_validator, "Проверяет запрос")
+Rel(router, logger, "Логирует запрос")
+Rel(router, metrics_collector, "Собирает метрики")
+
+' Маршрутизация к сервисам
+Rel(router, sensors, "Маршрутизирует команды датчиков", "gRPC/HTTP")
+Rel(router, monitoring, "Маршрутизирует запросы мониторинга", "gRPC/HTTP")
+
+SHOW_LEGEND()
+@enduml

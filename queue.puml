@@ -1,0 +1,70 @@
+@startuml queue_components
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - Очередь сообщений
+
+Container_Boundary(queue_internal, "Очередь сообщений") {
+    Component(command_queue, "Command Queue", "RabbitMQ/Kafka", "Очередь команд управления")
+    Component(telemetry_queue, "Telemetry Queue", "RabbitMQ/Kafka", "Очередь телеметрии")
+    Component(payment_queue, "Payment Queue", "RabbitMQ/Kafka", "Очередь платежных событий")
+    Component(alert_queue, "Alert Queue", "RabbitMQ/Kafka", "Очередь алертов")
+    Component(notification_queue, "Notification Queue", "RabbitMQ/Kafka", "Очередь уведомлений")
+    Component(dead_letter_queue, "Dead Letter Queue", "RabbitMQ/Kafka", "Очередь ошибок")
+    Component(message_router, "Message Router", "Go", "Маршрутизация сообщений")
+    Component(message_validator, "Message Validator", "Go", "Валидация сообщений")
+    Component(error_handler, "Error Handler", "Go", "Обработка ошибок")
+    Component(monitoring_service, "Queue Monitor", "Go", "Мониторинг очередей")
+}
+
+' Внешние системы
+Container(sensors, "Управление датчиками", "Go")
+Container(monitoring, "Мониторинг датчиков", "Go")
+System_Ext(house1, "Дом 1", "Система отопления")
+System_Ext(house2, "Дом 2", "Система отопления")
+System_Ext(houseN, "Дом N", "Система отопления")
+System_Ext(payments, "Платёжная система", "Обрабатывает платежи")
+
+' Связи - Публикация
+Rel(sensors, command_queue, "Публикует команды", "AMQP/Kafka")
+Rel(sensors, telemetry_queue, "Публикует телеметрию", "AMQP/Kafka")
+Rel(sensors, payment_queue, "Публикует платежные события", "AMQP/Kafka")
+
+Rel(house1, telemetry_queue, "Отправляет телеметрию", "MQTT/WebSocket")
+Rel(house2, telemetry_queue, "Отправляет телеметрию", "MQTT/WebSocket")
+Rel(houseN, telemetry_queue, "Отправляет телеметрию", "MQTT/WebSocket")
+
+Rel(payments, payment_queue, "Отправляет статусы", "AMQP/Kafka")
+
+' Связи - Потребление
+Rel(command_queue, house1, "Доставляет команды", "MQTT/WebSocket")
+Rel(command_queue, house2, "Доставляет команды", "MQTT/WebSocket")
+Rel(command_queue, houseN, "Доставляет команды", "MQTT/WebSocket")
+
+Rel(telemetry_queue, sensors, "Доставляет телеметрию", "AMQP/Kafka")
+Rel(telemetry_queue, monitoring, "Доставляет телеметрию", "AMQP/Kafka")
+
+Rel(payment_queue, sensors, "Доставляет статусы платежей", "AMQP/Kafka")
+
+Rel(alert_queue, monitoring, "Доставляет алерты", "AMQP/Kafka")
+
+' Внутренние обработчики
+Rel(message_router, command_queue, "Маршрутизирует", "AMQP/Kafka")
+Rel(message_router, telemetry_queue, "Маршрутизирует", "AMQP/Kafka")
+Rel(message_router, payment_queue, "Маршрутизирует", "AMQP/Kafka")
+Rel(message_router, alert_queue, "Маршрутизирует", "AMQP/Kafka")
+Rel(message_router, notification_queue, "Маршрутизирует", "AMQP/Kafka")
+
+Rel(message_validator, command_queue, "Валидирует", "AMQP/Kafka")
+Rel(message_validator, telemetry_queue, "Валидирует", "AMQP/Kafka")
+Rel(message_validator, payment_queue, "Валидирует", "AMQP/Kafka")
+
+Rel(error_handler, dead_letter_queue, "Перенаправляет ошибки", "AMQP/Kafka")
+Rel(error_handler, command_queue, "Повторная обработка", "AMQP/Kafka")
+
+Rel(monitoring_service, command_queue, "Мониторинг", "AMQP/Kafka")
+Rel(monitoring_service, telemetry_queue, "Мониторинг", "AMQP/Kafka")
+Rel(monitoring_service, dead_letter_queue, "Мониторинг", "AMQP/Kafka")
+
+SHOW_LEGEND()
+@enduml

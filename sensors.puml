@@ -1,0 +1,52 @@
+@startuml sensors_components
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - Управление датчиками
+
+Container(api_gateway, "API Gateway", "Go / Nginx", "Единая точка входа\nМаршрутизация\nАутентификация")
+
+Container_Boundary(sensors_internal, "Управление датчиками") {
+    Component(device_manager, "Device Manager", "Go", "Управление устройствами (CRUD)")
+    Component(command_handler, "Command Handler", "Go", "Обработка команд управления")
+    Component(telemetry_processor, "Telemetry Processor", "Go", "Обработка телеметрии")
+    Component(payment_client, "Payment Client", "Go", "Взаимодействие с платежной системой")
+    Component(notification_service, "Notification Service", "Go", "Уведомления о событиях")
+    Component(validator, "Data Validator", "Go", "Валидация данных с датчиков")
+    Component(event_publisher, "Event Publisher", "Go", "Публикация событий в очередь")
+}
+
+' Внешние системы
+ContainerDb(postgres, "База данных", "PostgreSQL")
+ContainerDb(cache, "Кеш", "Redis")
+Container(queue, "Очередь сообщений", "RabbitMQ/Kafka")
+System_Ext(payments, "Платёжная система")
+
+' Связи
+Rel(api_gateway, device_manager, "Запросы управления", "gRPC/HTTP")
+Rel(api_gateway, command_handler, "Команды управления", "gRPC/HTTP")
+
+' Управление устройствами
+Rel(device_manager, postgres, "Сохраняет устройства", "SQL")
+Rel(device_manager, cache, "Кеширует устройства", "Redis Protocol")
+Rel(device_manager, event_publisher, "Публикует события изменений")
+
+' Команды
+Rel(command_handler, validator, "Валидирует команды")
+Rel(command_handler, event_publisher, "Публикует команды")
+Rel(event_publisher, queue, "Отправляет в очередь", "AMQP/Kafka")
+
+' Телеметрия
+Rel(queue, telemetry_processor, "Получает телеметрию", "AMQP/Kafka")
+Rel(telemetry_processor, validator, "Валидирует данные")
+Rel(telemetry_processor, postgres, "Сохраняет историю", "SQL")
+Rel(telemetry_processor, cache, "Обновляет текущие показания", "Redis Protocol")
+Rel(telemetry_processor, notification_service, "Триггерит уведомления")
+
+' Платежи
+Rel(device_manager, payment_client, "Запрашивает платежи")
+Rel(payment_client, payments, "Инициирует платеж", "HTTPS")
+Rel(queue, payment_client, "Получает статусы транзакций", "AMQP/Kafka")
+
+SHOW_LEGEND()
+@enduml

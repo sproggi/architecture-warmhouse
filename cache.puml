@@ -1,0 +1,49 @@
+@startuml cache_components
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - Кеш
+
+Container_Boundary(cache_internal, "Redis") {
+    Component(sensor_cache, "Sensor Data Cache", "Redis", "Текущие показания датчиков")
+    Component(device_cache, "Device Cache", "Redis", "Кеш устройств")
+    Component(user_cache, "User Cache", "Redis", "Кеш пользователей")
+    Component(settings_cache, "Settings Cache", "Redis", "Кеш настроек")
+    Component(aggregate_cache, "Aggregate Cache", "Redis", "Кеш агрегированных данных")
+    Component(session_cache, "Session Cache", "Redis", "Кеш сессий")
+    Component(pubsub, "Pub/Sub", "Redis", "Публикация/Подписка на обновления")
+}
+
+' Внешние системы
+Container(sensors, "Управление датчиками", "Go")
+Container(monitoring, "Мониторинг датчиков", "Go")
+ContainerDb(postgres, "База данных", "PostgreSQL")
+Container(api_gateway, "API Gateway", "Go/Nginx")
+
+' Связи - Запись
+Rel(sensors, sensor_cache, "Обновляет показания", "Redis Protocol")
+Rel(sensors, device_cache, "Обновляет устройства", "Redis Protocol")
+Rel(sensors, user_cache, "Обновляет пользователей", "Redis Protocol")
+Rel(sensors, settings_cache, "Обновляет настройки", "Redis Protocol")
+Rel(sensors, pubsub, "Публикует события", "Redis Protocol")
+
+' Связи - Чтение
+Rel(monitoring, sensor_cache, "Читает показания (быстро)", "Redis Protocol")
+Rel(monitoring, device_cache, "Читает устройства", "Redis Protocol")
+Rel(monitoring, aggregate_cache, "Читает агрегаты", "Redis Protocol")
+Rel(monitoring, pubsub, "Подписывается на обновления", "Redis Protocol")
+
+Rel(api_gateway, session_cache, "Проверяет сессии", "Redis Protocol")
+Rel(api_gateway, user_cache, "Кеширует пользователей", "Redis Protocol")
+
+' Связи - Синхронизация
+Rel(sensor_cache, postgres, "Синхронизация", "Redis Protocol")
+Rel(device_cache, postgres, "Синхронизация", "Redis Protocol")
+Rel(settings_cache, postgres, "Синхронизация", "Redis Protocol")
+
+' Внутренние связи
+Rel(pubsub, sensor_cache, "Обновления", "Redis Protocol")
+Rel(pubsub, aggregate_cache, "Обновления", "Redis Protocol")
+
+SHOW_LEGEND()
+@enduml

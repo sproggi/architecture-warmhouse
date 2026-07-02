@@ -1,0 +1,58 @@
+@startuml database_components
+
+!include ./c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - База данных
+
+Container_Boundary(postgres_internal, "PostgreSQL") {
+    Component(devices_table, "Devices Table", "SQL", "Информация об устройствах")
+    Component(sensors_table, "Sensors Table", "SQL", "Данные датчиков")
+    Component(telemetry_table, "Telemetry Table", "SQL", "Исторические показания")
+    Component(users_table, "Users Table", "SQL", "Данные пользователей")
+    Component(settings_table, "Settings Table", "SQL", "Настройки системы")
+    Component(alerts_table, "Alerts Table", "SQL", "История алертов")
+    Component(payments_table, "Payments Table", "SQL", "Данные платежей")
+    Component(migration_service, "Migration Service", "Go", "Миграции схемы")
+    Component(backup_service, "Backup Service", "Go", "Резервное копирование")
+}
+
+' Внешние системы
+Container(sensors, "Управление датчиками", "Go")
+Container(monitoring, "Мониторинг датчиков", "Go")
+ContainerDb(cache, "Кеш", "Redis")
+Container(batch_processor, "Batch Processor", "Go", "Пакетная обработка")
+
+' Связи
+Rel(sensors, devices_table, "CRUD устройства", "SQL")
+Rel(sensors, sensors_table, "CRUD датчики", "SQL")
+Rel(sensors, telemetry_table, "Вставка телеметрии", "SQL")
+Rel(sensors, users_table, "CRUD пользователи", "SQL")
+Rel(sensors, settings_table, "CRUD настройки", "SQL")
+Rel(sensors, payments_table, "CRUD платежи", "SQL")
+
+Rel(monitoring, telemetry_table, "Чтение истории", "SQL")
+Rel(monitoring, alerts_table, "CRUD алерты", "SQL")
+Rel(monitoring, devices_table, "Чтение устройств", "SQL")
+Rel(monitoring, users_table, "Чтение пользователей", "SQL")
+
+Rel(cache, devices_table, "Синхронизация", "SQL")
+Rel(cache, settings_table, "Синхронизация", "SQL")
+
+' Внутренние сервисы
+Rel(migration_service, devices_table, "Миграции")
+Rel(migration_service, sensors_table, "Миграции")
+Rel(migration_service, telemetry_table, "Миграции")
+Rel(migration_service, users_table, "Миграции")
+Rel(migration_service, settings_table, "Миграции")
+Rel(migration_service, alerts_table, "Миграции")
+Rel(migration_service, payments_table, "Миграции")
+
+Rel(backup_service, devices_table, "Бэкап")
+Rel(backup_service, sensors_table, "Бэкап")
+Rel(backup_service, telemetry_table, "Бэкап")
+
+Rel(batch_processor, telemetry_table, "Пакетная обработка", "SQL")
+Rel(batch_processor, settings_table, "Обновление настроек", "SQL")
+
+SHOW_LEGEND()
+@enduml

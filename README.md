@@ -50,7 +50,7 @@
 ### 5. Визуализация контекста системы — диаграмма С4
 
 ```markdown
-[Диаграмми контекста](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/current_smart_home_uml.puml)
+[Диаграмма контекста](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/current_smart_home_uml.puml)
 ```
 
 # Задание 2. Проектирование микросервисной архитектуры
@@ -60,12 +60,19 @@
 **Диаграмма контейнеров (Containers)**
 
 ```markdown
-[Диаграмми контейнеров](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/smart_home_containers.puml)
+[Диаграмма контейнеров](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/smart_home_containers.puml)
 ```
 
 **Диаграмма компонентов (Components)**
 
-Добавьте диаграмму для каждого из выделенных микросервисов.
+```markdown
+[Компонент API_GW](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/api_gateway.puml)
+[Компонент sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors.puml)
+[Компонент monitoring](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/monitoring.puml)
+[Компонент database](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/database.puml)
+[Компонент queue](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/queue.puml)
+[Компонент cache](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/cache.puml)
+```
 
 **Диаграмма кода (Code)**
 
