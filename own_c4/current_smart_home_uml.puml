@@ -1,5 +1,5 @@
 @startuml smart_home
-!include ./c4_templates/C4_Context.puml
+!include ../c4_templates/C4_Context.puml
 
 title Контекстная диаграмма - Умный дом
 

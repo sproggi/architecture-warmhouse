@@ -50,7 +50,7 @@
 ### 5. Визуализация контекста системы — диаграмма С4
 
 ```markdown
-[Диаграмма контекста](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/current_smart_home_uml.puml)
+[Диаграмма контекста](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/current_smart_home_uml.puml)
 ```
 
 # Задание 2. Проектирование микросервисной архитектуры
@@ -60,32 +60,32 @@
 **Диаграмма контейнеров (Containers)**
 
 ```markdown
-[Диаграмма контейнеров](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/smart_home_containers.puml)
+[Диаграмма контейнеров](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/smart_home_containers.puml)
 ```
 
 **Диаграмма компонентов (Components)**
 
 ```markdown
-[Компонент API_GW](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/api_gateway.puml)
-[Компонент sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors.puml)
-[Компонент monitoring](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/monitoring.puml)
-[Компонент database](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/database.puml)
-[Компонент queue](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/queue.puml)
-[Компонент cache](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/cache.puml)
+[Компонент API_GW](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/api_gateway.puml)
+[Компонент sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/sensors.puml)
+[Компонент monitoring](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/monitoring.puml)
+[Компонент database](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/database.puml)
+[Компонент queue](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/queue.puml)
+[Компонент cache](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/cache.puml)
 ```
 
 **Диаграмма кода (Code)**
 
 ```markdown
-[Диаграмма кода sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors_code.puml)
-[Диаграмма классов для sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/sensors_classes.puml)
+[Диаграмма кода sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/sensors_code.puml)
+[Диаграмма классов для sensors](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/sensors_classes.puml)
 ```
 
 
 # Задание 3. Разработка ER-диаграммы
 
 ```markdown
-[Диаграмма ER](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/smart_home_erd.puml)
+[Диаграмма ER](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/own_c4/smart_home_erd.puml)
 ```
 
 # Задание 4. Создание и документирование API

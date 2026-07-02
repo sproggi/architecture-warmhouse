@@ -1,6 +1,6 @@
 @startuml api_gateway_components
 
-!include ./c4_templates/C4_Component.puml
+!include ../c4_templates/C4_Component.puml
 
 title Диаграмма компонентов - API Gateway
 

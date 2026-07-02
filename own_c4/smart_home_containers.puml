@@ -1,6 +1,6 @@
 @startuml smart_home_containers
 
-!include ./c4_templates/C4_Container.puml
+!include ../c4_templates/C4_Container.puml
 
 title Диаграмма контейнеров - Умный дом
 

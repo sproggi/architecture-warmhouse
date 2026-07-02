@@ -1,6 +1,6 @@
 @startuml sensors_code_diagram
 
-!include ./c4_templates/C4_Component.puml
+!include ../c4_templates/C4_Component.puml
 
 title Диаграмма кода - Управление датчиками (Версия 1.0)
 
