@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -82,119 +83,13 @@ func main() {
 		c.JSON(http.StatusOK, data)
 	})
 
-	// Создание датчика
-	router.POST("/sensors", func(c *gin.Context) {
-		var req CreateSensorRequest
-		
-		// Валидация запроса
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid request payload",
-				"details": err.Error(),
-			})
-			return
-		}
-
-		// Генерируем ID для датчика
-		sensorsMutex.Lock()
-		sensorIDCounter++
-		sensorID := string(rune('0' + sensorIDCounter)) // Простая генерация ID
-		// Если датчиков больше 9, используем более сложную логику
-		if sensorIDCounter > 9 {
-			sensorID = string(rune('A' + (sensorIDCounter - 10)))
-		}
-		sensorsMutex.Unlock()
-
-		// Создаем датчик
-		now := time.Now()
-		sensor := Sensor{
-			ID:         sensorID,
-			Name:       req.Name,
-			Type:       req.Type,
-			Location:   req.Location,
-			Unit:       req.Unit,
-			Status:     "active",
-			CreatedAt:  now,
-			UpdatedAt:  now,
-		}
-
-		// Сохраняем датчик
-		sensorsMutex.Lock()
-		sensors[sensorID] = sensor
-		sensorsMutex.Unlock()
-
-		log.Printf("Sensor created: ID=%s, Name=%s, Location=%s\n", sensor.ID, sensor.Name, sensor.Location)
-
-		c.JSON(http.StatusCreated, gin.H{
-			"message": "Sensor created successfully",
-			"sensor":  sensor,
-		})
-	})
-
-	// Получение всех датчиков
-	router.GET("/sensors", func(c *gin.Context) {
-		sensorsMutex.RLock()
-		defer sensorsMutex.RUnlock()
-		
-		sensorList := make([]Sensor, 0, len(sensors))
-		for _, sensor := range sensors {
-			sensorList = append(sensorList, sensor)
-		}
-		
-		c.JSON(http.StatusOK, gin.H{
-			"sensors": sensorList,
-			"count":   len(sensorList),
-		})
-	})
-
-	// Получение датчика по ID
-	router.GET("/sensors/:id", func(c *gin.Context) {
-		id := c.Param("id")
-		
-		sensorsMutex.RLock()
-		sensor, exists := sensors[id]
-		sensorsMutex.RUnlock()
-		
-		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Sensor not found",
-			})
-			return
-		}
-		
-		c.JSON(http.StatusOK, sensor)
-	})
-
-	// Удаление датчика
-	router.DELETE("/sensors/:id", func(c *gin.Context) {
-		id := c.Param("id")
-		
-		sensorsMutex.Lock()
-		_, exists := sensors[id]
-		if exists {
-			delete(sensors, id)
-		}
-		sensorsMutex.Unlock()
-		
-		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Sensor not found",
-			})
-			return
-		}
-		
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Sensor deleted successfully",
-		})
-	})
-
 	// Start server
 	log.Println("Temperature API starting on :8081")
 	if err := router.Run(":8081"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-
+	
 func generateTemperatureData(location, sensorID string) TemperatureData {
 	// Generate a random temperature between 18 and 28 degrees Celsius
 	value := 18.0 + float64(time.Now().UnixNano()%10) + float64(time.Now().UnixNano()%100)/100.0

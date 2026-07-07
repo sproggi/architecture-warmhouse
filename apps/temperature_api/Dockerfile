@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o temperature-api
 FROM alpine:latest
 
 # Install necessary runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata curl
 
 # Set working directory
 WORKDIR /app
