@@ -258,47 +258,6 @@ entity "audit_logs" as audit_logs {
     indexes: idx_audit_user_id, idx_audit_performed_at, idx_audit_resource
 }
 
-entity "schedules" as schedules {
-    * id : UUID [PK]
-    --
-    * user_id : UUID [FK -> users.id]
-    * device_id : UUID [FK -> devices.id]
-    * name : VARCHAR(100)
-    * description : TEXT
-    * cron_expression : VARCHAR(100)
-    * timezone : VARCHAR(50)
-    * action_type : schedule_action
-    * action_payload : JSONB
-    * is_active : BOOLEAN
-    * last_run_at : TIMESTAMP
-    * next_run_at : TIMESTAMP
-    * created_at : TIMESTAMP
-    * updated_at : TIMESTAMP
-    * metadata : JSONB
-    --
-    indexes: idx_schedules_user_id, idx_schedules_device_id, idx_schedules_next_run
-}
-
-entity "scenes" as scenes {
-    * id : UUID [PK]
-    --
-    * user_id : UUID [FK -> users.id]
-    * house_id : UUID [FK -> houses.id]
-    * name : VARCHAR(100)
-    * description : TEXT
-    * actions : JSONB
-    * is_active : BOOLEAN
-    * is_favorite : BOOLEAN
-    * trigger_type : trigger_type
-    * trigger_config : JSONB
-    * last_triggered : TIMESTAMP
-    * created_at : TIMESTAMP
-    * updated_at : TIMESTAMP
-    * metadata : JSONB
-    --
-    indexes: idx_scenes_user_id, idx_scenes_house_id, idx_scenes_is_active
-}
-
 ' === Enum Types ===
 enum user_role {
     ADMIN
@@ -412,16 +371,12 @@ users ||--o{ payments : "makes"
 users ||--o{ subscriptions : "has"
 users ||--o{ audit_logs : "performs"
 users ||--o{ alerts : "receives"
-users ||--o{ schedules : "creates"
-users ||--o{ scenes : "creates"
 
 houses ||--o{ devices : "contains"
-houses ||--o{ scenes : "has"
 
 devices ||--o{ sensors : "has"
 devices ||--o{ telemetry : "generates"
 devices ||--o{ commands : "receives"
-devices ||--o{ schedules : "has"
 
 sensors ||--o{ telemetry : "produces"
 sensors ||--o{ alerts : "triggers"
