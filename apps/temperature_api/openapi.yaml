@@ -1,0 +1,379 @@
+openapi: 3.0.3
+info:
+  title: Temperature API
+  description: API for managing temperature sensors and data
+  version: 1.0.0
+  contact:
+    name: Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+  - url: http://temperature-api:8081
+    description: Docker network server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the service is running
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /temperature:
+    get:
+      summary: Get temperature by location
+      description: Returns current temperature data for a specific location
+      tags:
+        - Temperature
+      parameters:
+        - name: location
+          in: query
+          description: Name of the location
+          required: true
+          schema:
+            type: string
+            example: Living Room
+      responses:
+        '200':
+          description: Temperature data successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureData'
+        '400':
+          description: Location parameter is missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /temperature/{id}:
+    get:
+      summary: Get temperature by sensor ID
+      description: Returns current temperature data for a specific sensor
+      tags:
+        - Temperature
+      parameters:
+        - name: id
+          in: path
+          description: Sensor ID
+          required: true
+          schema:
+            type: string
+            example: "1"
+      responses:
+        '200':
+          description: Temperature data successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureData'
+        '400':
+          description: Sensor ID is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensors:
+    post:
+      summary: Create a new sensor
+      description: Register a new temperature sensor in the system
+      tags:
+        - Sensors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSensorRequest'
+            examples:
+              living_room:
+                summary: Living Room Sensor
+                value:
+                  name: "Living Room Temperature"
+                  type: "temperature"
+                  location: "Living Room"
+                  unit: "°C"
+              bedroom:
+                summary: Bedroom Sensor
+                value:
+                  name: "Bedroom Temperature"
+                  type: "temperature"
+                  location: "Bedroom"
+                  unit: "°C"
+              kitchen:
+                summary: Kitchen Sensor
+                value:
+                  name: "Kitchen Temperature"
+                  type: "temperature"
+                  location: "Kitchen"
+                  unit: "°C"
+      responses:
+        '201':
+          description: Sensor created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorResponse'
+              examples:
+                created:
+                  value:
+                    message: "Sensor created successfully"
+                    sensor:
+                      id: "1"
+                      name: "Living Room Temperature"
+                      type: "temperature"
+                      location: "Living Room"
+                      unit: "°C"
+                      status: "active"
+                      created_at: "2024-01-15T10:30:00Z"
+                      updated_at: "2024-01-15T10:30:00Z"
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  value:
+                    error: "Invalid request payload"
+                    details: "Key: 'CreateSensorRequest.Name' Error:Field validation for 'Name' failed on the 'required' tag"
+
+    get:
+      summary: Get all sensors
+      description: Returns a list of all registered sensors
+      tags:
+        - Sensors
+      responses:
+        '200':
+          description: List of sensors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sensors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Sensor'
+                  count:
+                    type: integer
+                    example: 3
+
+  /sensors/{id}:
+    get:
+      summary: Get sensor by ID
+      description: Returns detailed information about a specific sensor
+      tags:
+        - Sensors
+      parameters:
+        - name: id
+          in: path
+          description: Sensor ID
+          required: true
+          schema:
+            type: string
+            example: "1"
+      responses:
+        '200':
+          description: Sensor found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+        '404':
+          description: Sensor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a sensor
+      description: Remove a sensor from the system
+      tags:
+        - Sensors
+      parameters:
+        - name: id
+          in: path
+          description: Sensor ID
+          required: true
+          schema:
+            type: string
+            example: "1"
+      responses:
+        '200':
+          description: Sensor deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Sensor deleted successfully"
+        '404':
+          description: Sensor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TemperatureData:
+      type: object
+      properties:
+        value:
+          type: number
+          format: float
+          description: Temperature value
+          example: 23.45
+        unit:
+          type: string
+          description: Temperature unit
+          example: "°C"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the temperature was recorded
+          example: "2024-01-15T10:30:45.123Z"
+        location:
+          type: string
+          description: Location name
+          example: "Living Room"
+        status:
+          type: string
+          description: Sensor status
+          example: "active"
+        sensor_id:
+          type: string
+          description: Unique sensor identifier
+          example: "1"
+        sensor_type:
+          type: string
+          description: Type of sensor
+          example: "temperature"
+        description:
+          type: string
+          description: Human-readable sensor description
+          example: "Temperature sensor in Living Room"
+
+    CreateSensorRequest:
+      type: object
+      required:
+        - name
+        - type
+        - location
+        - unit
+      properties:
+        name:
+          type: string
+          description: Sensor name
+          example: "Living Room Temperature"
+        type:
+          type: string
+          description: Type of sensor
+          example: "temperature"
+          enum:
+            - "temperature"
+            - "humidity"
+            - "pressure"
+        location:
+          type: string
+          description: Physical location of the sensor
+          example: "Living Room"
+        unit:
+          type: string
+          description: Measurement unit
+          example: "°C"
+          enum:
+            - "°C"
+            - "°F"
+
+    Sensor:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique sensor identifier
+          example: "1"
+        name:
+          type: string
+          description: Sensor name
+          example: "Living Room Temperature"
+        type:
+          type: string
+          description: Type of sensor
+          example: "temperature"
+        location:
+          type: string
+          description: Physical location
+          example: "Living Room"
+        unit:
+          type: string
+          description: Measurement unit
+          example: "°C"
+        status:
+          type: string
+          description: Current sensor status
+          example: "active"
+          enum:
+            - "active"
+            - "inactive"
+            - "error"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+
+    SensorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+          example: "Sensor created successfully"
+        sensor:
+          $ref: '#/components/schemas/Sensor'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Location is required"
+        details:
+          type: string
+          description: Additional error details
+          example: "Key: 'CreateSensorRequest.Name' Error:Field validation for 'Name' failed on the 'required' tag"
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Temperature
+    description: Temperature data endpoints
+  - name: Sensors
+    description: Sensor management endpoints

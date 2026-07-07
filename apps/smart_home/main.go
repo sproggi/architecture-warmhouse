@@ -42,6 +42,10 @@ func main() {
 		})
 	})
 
+	router.GET("/openapi.yaml", func(c *gin.Context) {
+		c.File("./openapi.yaml")
+	})
+
 	// API routes
 	apiRoutes := router.Group("/api/v1")
 
