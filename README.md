@@ -98,7 +98,7 @@
 ### 2. Документация API
 
 ```markdown
-[Open API Docs](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/openapi_doc.yaml)
+[Open API Docs](https://github.com/sproggi/architecture-warmhouse/blob/warmhouse/apps/smart_home/openapi.yaml)
 ```
 
 # Задание 5. Работа с docker и docker-compose
