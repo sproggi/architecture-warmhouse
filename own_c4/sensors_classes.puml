@@ -1,0 +1,288 @@
+@startuml sensors_class_diagram
+
+title Детальная диаграмма классов - Управление датчиками
+
+' === Domain Models ===
+class Device {
+    - ID: string
+    - UserID: string
+    - Name: string
+    - Type: DeviceType
+    - Location: string
+    - Status: DeviceStatus
+    - CreatedAt: time.Time
+    - UpdatedAt: time.Time
+    + Activate()
+    + Deactivate()
+    + UpdateStatus(status)
+}
+
+class Sensor {
+    - ID: string
+    - DeviceID: string
+    - Type: SensorType
+    - Name: string
+    - Unit: string
+    - MinValue: float64
+    - MaxValue: float64
+    - CurrentValue: float64
+    - IsActive: bool
+    + ReadValue() float64
+    + Calibrate()
+}
+
+class Telemetry {
+    - ID: string
+    - SensorID: string
+    - Value: float64
+    - Timestamp: time.Time
+    - Quality: QualityLevel
+    - IsValid: bool
+    + Validate()
+}
+
+class Command {
+    - ID: string
+    - DeviceID: string
+    - Type: CommandType
+    - Payload: map[string]interface{}
+    - Status: CommandStatus
+    - CreatedAt: time.Time
+    - ExecutedAt: *time.Time
+    + Execute()
+    + Rollback()
+}
+
+' === DTO Models ===
+class DeviceDTO {
+    + ID: string
+    + Name: string
+    + Type: string
+    + Location: string
+    + Status: string
+}
+
+class SensorDTO {
+    + ID: string
+    + DeviceID: string
+    + Name: string
+    + Type: string
+    + CurrentValue: float64
+    + Unit: string
+}
+
+class CommandDTO {
+    + DeviceID: string
+    + Type: string
+    + Payload: map[string]interface{}
+}
+
+class TelemetryDTO {
+    + SensorID: string
+    + Value: float64
+    + Timestamp: time.Time
+}
+
+' === Service Layer ===
+class DeviceService {
+    - repo: DeviceRepository
+    - cache: CacheService
+    - validator: Validator
+    + CreateDevice(dto DeviceDTO) error
+    + GetDevice(id string) (*Device, error)
+    + UpdateDevice(id string, dto DeviceDTO) error
+    + DeleteDevice(id string) error
+    + ListDevices(userID string) ([]Device, error)
+    + ActivateDevice(id string) error
+    + DeactivateDevice(id string) error
+}
+
+class SensorService {
+    - repo: SensorRepository
+    - cache: CacheService
+    - validator: Validator
+    + AddSensor(dto SensorDTO) error
+    + GetSensor(id string) (*Sensor, error)
+    + UpdateSensor(id string, dto SensorDTO) error
+    + DeleteSensor(id string) error
+    + ListSensors(deviceID string) ([]Sensor, error)
+    + GetCurrentValue(id string) (float64, error)
+}
+
+class CommandService {
+    - commandRepo: CommandRepository
+    - deviceService: DeviceService
+    - queuePublisher: QueuePublisher
+    + SendCommand(cmd CommandDTO) (string, error)
+    + GetCommandStatus(id string) (CommandStatus, error)
+    + CancelCommand(id string) error
+    + ProcessCommandResult(id string, result interface{}) error
+}
+
+class TelemetryService {
+    - repo: TelemetryRepository
+    - sensorService: SensorService
+    - cacheService: CacheService
+    - queuePublisher: QueuePublisher
+    + ProcessTelemetry(data TelemetryDTO) error
+    + GetHistoricalData(sensorID string, from, to time.Time) ([]Telemetry, error)
+    + GetLatestData(sensorID string) (*Telemetry, error)
+    + ProcessBatchTelemetry(data []TelemetryDTO) error
+    + DetectAnomalies(data TelemetryDTO) bool
+}
+
+class PaymentService {
+    - paymentRepo: PaymentRepository
+    - paymentClient: PaymentClient
+    - notificationClient: NotificationClient
+    + ProcessPayment(userID string, amount float64) error
+    + GetPaymentStatus(paymentID string) (string, error)
+    + HandlePaymentCallback(data PaymentCallback) error
+    + RefundPayment(paymentID string) error
+}
+
+' === Repository Layer ===
+interface DeviceRepository {
+    + Save(device Device) error
+    + FindByID(id string) (*Device, error)
+    + FindByUserID(userID string) ([]Device, error)
+    + Update(device Device) error
+    + Delete(id string) error
+    + Exists(id string) bool
+}
+
+interface SensorRepository {
+    + Save(sensor Sensor) error
+    + FindByID(id string) (*Sensor, error)
+    + FindByDeviceID(deviceID string) ([]Sensor, error)
+    + Update(sensor Sensor) error
+    + Delete(id string) error
+    + UpdateCurrentValue(id string, value float64) error
+}
+
+interface TelemetryRepository {
+    + Save(telemetry Telemetry) error
+    + SaveBatch(telemetry []Telemetry) error
+    + FindBySensorID(sensorID string, from, to time.Time) ([]Telemetry, error)
+    + GetLatest(sensorID string) (*Telemetry, error)
+    + GetAggregated(sensorID string, from, to time.Time, interval string) ([]AggregatedData, error)
+    + DeleteOlderThan(days int) error
+}
+
+' === Integration Layer ===
+interface QueuePublisher {
+    + PublishCommand(command Command) error
+    + PublishTelemetry(telemetry Telemetry) error
+    + PublishEvent(event Event) error
+}
+
+interface QueueConsumer {
+    + ConsumeCommands() (<-chan Command, error)
+    + ConsumeTelemetry() (<-chan Telemetry, error)
+    + ConsumePaymentStatus() (<-chan PaymentStatus, error)
+    + Acknowledge(message interface{}) error
+}
+
+interface CacheService {
+    + Set(key string, value interface{}, ttl time.Duration) error
+    + Get(key string, value interface{}) error
+    + Delete(key string) error
+    + SetHash(key string, field string, value interface{}) error
+    + GetHash(key string, field string, value interface{}) error
+    + Increment(key string) (int64, error)
+    + Expire(key string, ttl time.Duration) error
+}
+
+interface PaymentClient {
+    + CreatePayment(request PaymentRequest) (*PaymentResponse, error)
+    + GetPaymentStatus(paymentID string) (*PaymentStatus, error)
+    + RefundPayment(paymentID string) (*RefundResponse, error)
+}
+
+' === Handlers ===
+class DeviceHandler {
+    - service: DeviceService
+    + CreateDevice(ctx context.Context, req CreateDeviceRequest) (*DeviceResponse, error)
+    + GetDevice(ctx context.Context, id string) (*DeviceResponse, error)
+    + UpdateDevice(ctx context.Context, id string, req UpdateDeviceRequest) (*DeviceResponse, error)
+    + DeleteDevice(ctx context.Context, id string) error
+    + ListDevices(ctx context.Context, userID string) ([]DeviceResponse, error)
+}
+
+class SensorHandler {
+    - service: SensorService
+    + AddSensor(ctx context.Context, req AddSensorRequest) (*SensorResponse, error)
+    + GetSensor(ctx context.Context, id string) (*SensorResponse, error)
+    + UpdateSensor(ctx context.Context, id string, req UpdateSensorRequest) (*SensorResponse, error)
+    + DeleteSensor(ctx context.Context, id string) error
+    + ListSensors(ctx context.Context, deviceID string) ([]SensorResponse, error)
+    + GetCurrentValue(ctx context.Context, id string) (*CurrentValueResponse, error)
+}
+
+class CommandHandler {
+    - service: CommandService
+    + SendCommand(ctx context.Context, req SendCommandRequest) (*CommandResponse, error)
+    + GetCommandStatus(ctx context.Context, id string) (*StatusResponse, error)
+    + CancelCommand(ctx context.Context, id string) error
+}
+
+class TelemetryHandler {
+    - service: TelemetryService
+    + ReceiveTelemetry(ctx context.Context, req ReceiveTelemetryRequest) error
+    + GetHistoricalData(ctx context.Context, sensorID string, from, to time.Time) ([]TelemetryResponse, error)
+    + GetLatestData(ctx context.Context, sensorID string) (*TelemetryResponse, error)
+}
+
+' === Relationships ===
+DeviceService --> DeviceRepository
+DeviceService --> CacheService
+DeviceService --> Validator
+DeviceService --> Device
+DeviceService --> DeviceDTO
+
+SensorService --> SensorRepository
+SensorService --> CacheService
+SensorService --> Validator
+SensorService --> Sensor
+SensorService --> SensorDTO
+
+CommandService --> CommandRepository
+CommandService --> DeviceService
+CommandService --> QueuePublisher
+
+TelemetryService --> TelemetryRepository
+TelemetryService --> SensorService
+TelemetryService --> CacheService
+TelemetryService --> QueuePublisher
+
+PaymentService --> PaymentRepository
+PaymentService --> PaymentClient
+PaymentService --> NotificationClient
+
+DeviceHandler --> DeviceService
+DeviceHandler --> DeviceDTO
+DeviceHandler --> DeviceResponse
+
+SensorHandler --> SensorService
+SensorHandler --> SensorDTO
+SensorHandler --> SensorResponse
+
+CommandHandler --> CommandService
+CommandHandler --> CommandDTO
+CommandHandler --> CommandResponse
+
+TelemetryHandler --> TelemetryService
+TelemetryHandler --> TelemetryDTO
+TelemetryHandler --> TelemetryResponse
+
+' === Repository Implementations ===
+class PostgresDeviceRepository implements DeviceRepository
+class PostgresSensorRepository implements SensorRepository
+class PostgresTelemetryRepository implements TelemetryRepository
+class PostgresPaymentRepository implements PaymentRepository
+class RedisCacheService implements CacheService
+class RabbitMQQueuePublisher implements QueuePublisher
+class KafkaQueueConsumer implements QueueConsumer
+class HTTPPaymentClient implements PaymentClient
+
+@enduml

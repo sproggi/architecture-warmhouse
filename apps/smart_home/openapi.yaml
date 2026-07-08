@@ -1,0 +1,1819 @@
+openapi: 3.0.3
+info:
+  title: Smart Home API
+  description: |
+    API для управления системой "Умный дом"
+    
+    ## Основные возможности
+    - Управление пользователями и домами
+    - CRUD операции с устройствами и датчиками
+    - Мониторинг текущих показаний
+    - Управление командами
+    - Настройка сценариев и расписаний
+    
+    ## Аутентификация
+    Используется JWT токен в заголовке `Authorization: Bearer <token>`
+    
+    ## Ограничения
+    - Rate limiting: 100 запросов в минуту
+    - Максимальный размер payload: 1MB
+  version: 1.0.0
+  contact:
+    name: Smart Home Support
+    email: support@smarthome.ru
+    url: https://smarthome.ru
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление сессиями
+  - name: Users
+    description: Управление пользователями
+  - name: Houses
+    description: Управление домами
+  - name: Devices
+    description: Управление устройствами
+  - name: Sensors
+    description: Управление датчиками
+  - name: Telemetry
+    description: Получение телеметрии
+  - name: Commands
+    description: Управление командами
+  - name: Alerts
+    description: Управление оповещениями
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен, полученный при аутентификации
+
+  schemas:
+    # === Общие схемы ===
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Сообщение об ошибке
+          example: "Invalid email format"
+        details:
+          type: object
+          description: Дополнительная информация
+          example:
+            field: "email"
+            reason: "must be a valid email"
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          example: 20
+        total:
+          type: integer
+          example: 150
+        total_pages:
+          type: integer
+          example: 8
+
+    # === User Schemas ===
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        phone:
+          type: string
+          pattern: "^\\+[1-9]\\d{1,14}$"
+          example: "+79001234567"
+        first_name:
+          type: string
+          example: "Иван"
+        last_name:
+          type: string
+          example: "Петров"
+        role:
+          type: string
+          enum: [ADMIN, USER, SUPPORT, SERVICE]
+          example: "USER"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED, DELETED]
+          example: "ACTIVE"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        last_login:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        is_verified:
+          type: boolean
+          example: true
+        preferences:
+          type: object
+          properties:
+            theme:
+              type: string
+              enum: [light, dark, system]
+            language:
+              type: string
+              example: "ru"
+            notifications:
+              type: object
+              properties:
+                email:
+                  type: boolean
+                push:
+                  type: boolean
+                sms:
+                  type: boolean
+
+    CreateUserRequest:
+      type: object
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        phone:
+          type: string
+          pattern: "^\\+[1-9]\\d{1,14}$"
+          example: "+79001234567"
+        password:
+          type: string
+          minLength: 8
+          pattern: "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{8,}$"
+          example: "SecurePass123!"
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Иван"
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Петров"
+        preferences:
+          type: object
+          properties:
+            theme:
+              type: string
+              enum: [light, dark, system]
+            language:
+              type: string
+              example: "ru"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          pattern: "^\\+[1-9]\\d{1,14}$"
+        preferences:
+          type: object
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          example: "SecurePass123!"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        expires_in:
+          type: integer
+          example: 3600
+        token_type:
+          type: string
+          example: "Bearer"
+        user:
+          $ref: '#/components/schemas/User'
+
+    # === House Schemas ===
+    House:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Мой дом"
+        address:
+          type: string
+          example: "ул. Ленина, д. 1"
+        city:
+          type: string
+          example: "Москва"
+        country:
+          type: string
+          example: "RU"
+        postal_code:
+          type: string
+          example: "101000"
+        timezone:
+          type: string
+          example: "Europe/Moscow"
+        latitude:
+          type: number
+          format: double
+          example: 55.7558
+        longitude:
+          type: number
+          format: double
+          example: 37.6173
+        status:
+          type: string
+          enum: [ONLINE, OFFLINE, MAINTENANCE, DELETED]
+          example: "ONLINE"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_active:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+          example: true
+
+    CreateHouseRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Мой дом"
+        address:
+          type: string
+          example: "ул. Ленина, д. 1"
+        city:
+          type: string
+          example: "Москва"
+        country:
+          type: string
+          example: "RU"
+        postal_code:
+          type: string
+          example: "101000"
+        timezone:
+          type: string
+          example: "Europe/Moscow"
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    # === Device Schemas ===
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        house_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Термостат в гостиной"
+        type:
+          type: string
+          enum: [THERMOSTAT, BOILER, HEATER, RADIATOR, TEMPERATURE_SENSOR, 
+                 HUMIDITY_SENSOR, PRESSURE_SENSOR, LIGHT, SWITCH, PLUG,
+                 LOCK, CAMERA, MOTION_SENSOR, GAS_SENSOR, SMOKE_DETECTOR,
+                 DOOR_SENSOR, WINDOW_SENSOR, ENERGY_METER]
+        manufacturer:
+          type: string
+          example: "Honeywell"
+        model:
+          type: string
+          example: "TH3210D1004"
+        serial_number:
+          type: string
+          example: "SN123456789"
+        firmware_version:
+          type: string
+          example: "v2.1.0"
+        protocol:
+          type: string
+          enum: [MQTT, HTTP, WEBSOCKET, ZIGBEE, ZWAVE, BLE, LORA]
+          example: "MQTT"
+        ip_address:
+          type: string
+          format: ipv4
+          example: "192.168.1.100"
+        mac_address:
+          type: string
+          pattern: "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+          example: "AA:BB:CC:DD:EE:FF"
+        location:
+          type: string
+          example: "Гостиная"
+        room:
+          type: string
+          example: "Гостиная"
+        status:
+          type: string
+          enum: [ONLINE, OFFLINE, MAINTENANCE, ERROR, PAIRING, UPDATING]
+          example: "ONLINE"
+        battery_level:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 85
+        signal_strength:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 90
+        last_seen:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+          example: true
+        configuration:
+          type: object
+          properties:
+            polling_interval:
+              type: integer
+              example: 60
+            reporting_interval:
+              type: integer
+              example: 300
+            thresholds:
+              type: object
+
+    CreateDeviceRequest:
+      type: object
+      required:
+        - house_id
+        - name
+        - type
+      properties:
+        house_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum: [THERMOSTAT, BOILER, HEATER, RADIATOR, TEMPERATURE_SENSOR, 
+                 HUMIDITY_SENSOR, PRESSURE_SENSOR, LIGHT, SWITCH, PLUG,
+                 LOCK, CAMERA, MOTION_SENSOR, GAS_SENSOR, SMOKE_DETECTOR,
+                 DOOR_SENSOR, WINDOW_SENSOR, ENERGY_METER]
+        manufacturer:
+          type: string
+        model:
+          type: string
+        serial_number:
+          type: string
+        protocol:
+          type: string
+          enum: [MQTT, HTTP, WEBSOCKET, ZIGBEE, ZWAVE, BLE, LORA]
+        ip_address:
+          type: string
+          format: ipv4
+        mac_address:
+          type: string
+          pattern: "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+        location:
+          type: string
+        room:
+          type: string
+        configuration:
+          type: object
+
+    UpdateDeviceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        location:
+          type: string
+        room:
+          type: string
+        configuration:
+          type: object
+        is_active:
+          type: boolean
+
+    # === Sensor Schemas ===
+    Sensor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Датчик температуры"
+        type:
+          type: string
+          enum: [TEMPERATURE, HUMIDITY, PRESSURE, CO2, GAS, SMOKE, 
+                 MOTION, LIGHT_LEVEL, VOLTAGE, CURRENT, POWER, 
+                 ENERGY, WATER_FLOW, AIR_QUALITY]
+        unit:
+          type: string
+          example: "°C"
+        location:
+          type: string
+          example: "Гостиная"
+        min_value:
+          type: number
+          format: double
+          example: -10.0
+        max_value:
+          type: number
+          format: double
+          example: 50.0
+        warning_threshold_low:
+          type: number
+          format: double
+          example: 15.0
+        warning_threshold_high:
+          type: number
+          format: double
+          example: 30.0
+        critical_threshold_low:
+          type: number
+          format: double
+          example: 5.0
+        critical_threshold_high:
+          type: number
+          format: double
+          example: 40.0
+        current_value:
+          type: number
+          format: double
+          example: 22.5
+        current_value_updated:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, CALIBRATING, ERROR, MAINTENANCE]
+          example: "ACTIVE"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_calibration:
+          type: string
+          format: date-time
+        accuracy:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          example: 98.5
+        precision:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          example: 99.0
+        polling_interval:
+          type: integer
+          example: 60
+        reporting_interval:
+          type: integer
+          example: 300
+
+    CreateSensorRequest:
+      type: object
+      required:
+        - device_id
+        - name
+        - type
+        - unit
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum: [TEMPERATURE, HUMIDITY, PRESSURE, CO2, GAS, SMOKE, 
+                 MOTION, LIGHT_LEVEL, VOLTAGE, CURRENT, POWER, 
+                 ENERGY, WATER_FLOW, AIR_QUALITY]
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+        location:
+          type: string
+        min_value:
+          type: number
+          format: double
+        max_value:
+          type: number
+          format: double
+        warning_threshold_low:
+          type: number
+          format: double
+        warning_threshold_high:
+          type: number
+          format: double
+        critical_threshold_low:
+          type: number
+          format: double
+        critical_threshold_high:
+          type: number
+          format: double
+        polling_interval:
+          type: integer
+          minimum: 1
+          default: 60
+        reporting_interval:
+          type: integer
+          minimum: 1
+          default: 300
+
+    # === Telemetry Schemas ===
+    TelemetryData:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        sensor_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        value:
+          type: number
+          format: double
+          example: 22.5
+        value_raw:
+          type: number
+          format: double
+          example: 22.52
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        received_at:
+          type: string
+          format: date-time
+        quality:
+          type: string
+          enum: [EXCELLENT, GOOD, FAIR, POOR, INVALID]
+          example: "GOOD"
+        is_valid:
+          type: boolean
+          example: true
+        is_anomaly:
+          type: boolean
+          example: false
+        anomaly_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          example: 12.5
+
+    TelemetryRequest:
+      type: object
+      required:
+        - sensor_id
+        - value
+      properties:
+        sensor_id:
+          type: string
+          format: uuid
+        value:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    TelemetryBatchRequest:
+      type: object
+      required:
+        - readings
+      properties:
+        readings:
+          type: array
+          items:
+            $ref: '#/components/schemas/TelemetryRequest'
+
+    TelemetryAggregated:
+      type: object
+      properties:
+        sensor_id:
+          type: string
+          format: uuid
+        interval_start:
+          type: string
+          format: date-time
+        interval_end:
+          type: string
+          format: date-time
+        interval_type:
+          type: string
+          enum: [MINUTE, HOUR, DAY, WEEK, MONTH]
+        avg_value:
+          type: number
+          format: double
+        min_value:
+          type: number
+          format: double
+        max_value:
+          type: number
+          format: double
+        count:
+          type: integer
+        std_dev:
+          type: number
+          format: double
+        percentile_50:
+          type: number
+          format: double
+        percentile_95:
+          type: number
+          format: double
+
+    # === Command Schemas ===
+    Command:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TURN_ON, TURN_OFF, SET_TEMPERATURE, SET_MODE, 
+                 CALIBRATE, UPDATE_FIRMWARE, RESTART, PAUSE, RESUME]
+        payload:
+          type: object
+          example:
+            temperature: 22.5
+            mode: "heat"
+        status:
+          type: string
+          enum: [PENDING, SCHEDULED, PROCESSING, EXECUTED, FAILED, 
+                 CANCELLED, TIMEOUT]
+          example: "PENDING"
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH, CRITICAL]
+          example: "NORMAL"
+        created_at:
+          type: string
+          format: date-time
+        scheduled_at:
+          type: string
+          format: date-time
+        executed_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        result:
+          type: object
+          example:
+            success: true
+            message: "Command executed successfully"
+        error_message:
+          type: string
+
+    CreateCommandRequest:
+      type: object
+      required:
+        - device_id
+        - type
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TURN_ON, TURN_OFF, SET_TEMPERATURE, SET_MODE, 
+                 CALIBRATE, UPDATE_FIRMWARE, RESTART, PAUSE, RESUME]
+        payload:
+          type: object
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH, CRITICAL]
+          default: "NORMAL"
+        scheduled_at:
+          type: string
+          format: date-time
+
+    # === Alert Schemas ===
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sensor_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [HIGH_VALUE, LOW_VALUE, RAPID_CHANGE, NO_DATA, 
+                 ANOMALY, DEVICE_OFFLINE, BATTERY_LOW, 
+                 MAINTENANCE_REQUIRED, COMMUNICATION_ERROR]
+        severity:
+          type: string
+          enum: [INFO, WARNING, CRITICAL, EMERGENCY]
+        message:
+          type: string
+        value:
+          type: number
+          format: double
+        threshold:
+          type: number
+          format: double
+        triggered_at:
+          type: string
+          format: date-time
+        acknowledged_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [TRIGGERED, ACKNOWLEDGED, RESOLVED, DISMISSED]
+        notification_sent:
+          type: boolean
+
+    AcknowledgeAlertRequest:
+      type: object
+      properties:
+        note:
+          type: string
+
+    ResolveAlertRequest:
+      type: object
+      required:
+        - resolution_note
+      properties:
+        resolution_note:
+          type: string
+
+paths:
+  # === Auth Endpoints ===
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Аутентификация пользователя
+      description: Получение JWT токена для доступа к API
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Слишком много попыток
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление токена
+      description: Получение нового access_token по refresh_token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Новый токен получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход из системы
+      description: Инвалидация текущей сессии
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Успешный выход
+
+  # === User Endpoints ===
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Получение профиля пользователя
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    put:
+      tags: [Users]
+      summary: Обновление профиля пользователя
+      operationId: updateCurrentUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Профиль обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/me/preferences:
+    get:
+      tags: [Users]
+      summary: Получение настроек пользователя
+      operationId: getUserPreferences
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Настройки пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+
+    put:
+      tags: [Users]
+      summary: Обновление настроек пользователя
+      operationId: updateUserPreferences
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Настройки обновлены
+
+  # === House Endpoints ===
+  /houses:
+    get:
+      tags: [Houses]
+      summary: Список домов пользователя
+      operationId: listHouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ONLINE, OFFLINE, MAINTENANCE]
+      responses:
+        '200':
+          description: Список домов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/House'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags: [Houses]
+      summary: Создание нового дома
+      operationId: createHouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHouseRequest'
+      responses:
+        '201':
+          description: Дом создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+
+  /houses/{houseId}:
+    get:
+      tags: [Houses]
+      summary: Получение информации о доме
+      operationId: getHouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о доме
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+        '404':
+          description: Дом не найден
+
+    put:
+      tags: [Houses]
+      summary: Обновление информации о доме
+      operationId: updateHouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHouseRequest'
+      responses:
+        '200':
+          description: Информация обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+
+    delete:
+      tags: [Houses]
+      summary: Удаление дома
+      operationId: deleteHouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Дом удален
+
+  # === Device Endpoints ===
+  /devices:
+    get:
+      tags: [Devices]
+      summary: Список устройств
+      operationId: listDevices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: house_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ONLINE, OFFLINE, MAINTENANCE, ERROR, PAIRING, UPDATING]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [THERMOSTAT, BOILER, HEATER, RADIATOR, TEMPERATURE_SENSOR, 
+                   HUMIDITY_SENSOR, PRESSURE_SENSOR, LIGHT, SWITCH, PLUG,
+                   LOCK, CAMERA, MOTION_SENSOR, GAS_SENSOR, SMOKE_DETECTOR,
+                   DOOR_SENSOR, WINDOW_SENSOR, ENERGY_METER]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список устройств
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags: [Devices]
+      summary: Добавление нового устройства
+      operationId: createDevice
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+      responses:
+        '201':
+          description: Устройство создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /devices/{deviceId}:
+    get:
+      tags: [Devices]
+      summary: Получение информации об устройстве
+      operationId: getDevice
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация об устройстве
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+    put:
+      tags: [Devices]
+      summary: Обновление устройства
+      operationId: updateDevice
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeviceRequest'
+      responses:
+        '200':
+          description: Устройство обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+    delete:
+      tags: [Devices]
+      summary: Удаление устройства
+      operationId: deleteDevice
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Устройство удалено
+
+  # === Sensor Endpoints ===
+  /sensors:
+    get:
+      tags: [Sensors]
+      summary: Список датчиков
+      operationId: listSensors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: device_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [TEMPERATURE, HUMIDITY, PRESSURE, CO2, GAS, SMOKE, 
+                   MOTION, LIGHT_LEVEL, VOLTAGE, CURRENT, POWER, 
+                   ENERGY, WATER_FLOW, AIR_QUALITY]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, CALIBRATING, ERROR, MAINTENANCE]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список датчиков
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Sensor'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags: [Sensors]
+      summary: Добавление датчика
+      operationId: createSensor
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSensorRequest'
+      responses:
+        '201':
+          description: Датчик создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+  /sensors/{sensorId}:
+    get:
+      tags: [Sensors]
+      summary: Получение информации о датчике
+      operationId: getSensor
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о датчике
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+    put:
+      tags: [Sensors]
+      summary: Обновление датчика
+      operationId: updateSensor
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSensorRequest'
+      responses:
+        '200':
+          description: Датчик обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sensor'
+
+    delete:
+      tags: [Sensors]
+      summary: Удаление датчика
+      operationId: deleteSensor
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Датчик удален
+
+  /sensors/{sensorId}/value:
+    get:
+      tags: [Sensors]
+      summary: Получение текущего значения датчика
+      operationId: getSensorValue
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Текущее значение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sensor_id:
+                    type: string
+                    format: uuid
+                  value:
+                    type: number
+                    format: double
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # === Telemetry Endpoints ===
+  /telemetry:
+    post:
+      tags: [Telemetry]
+      summary: Отправка телеметрии
+      description: Отправка показаний от датчика (для устройств)
+      operationId: sendTelemetry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryRequest'
+      responses:
+        '202':
+          description: Телеметрия принята в обработку
+        '400':
+          description: Неверные данные
+
+  /telemetry/batch:
+    post:
+      tags: [Telemetry]
+      summary: Пакетная отправка телеметрии
+      operationId: sendTelemetryBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryBatchRequest'
+      responses:
+        '202':
+          description: Пакет принят в обработку
+
+  /telemetry/sensors/{sensorId}:
+    get:
+      tags: [Telemetry]
+      summary: Получение исторических данных датчика
+      operationId: getSensorTelemetry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 1000
+        - name: quality
+          in: query
+          schema:
+            type: string
+            enum: [EXCELLENT, GOOD, FAIR, POOR, INVALID]
+      responses:
+        '200':
+          description: Исторические данные
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TelemetryData'
+                  count:
+                    type: integer
+
+  /telemetry/sensors/{sensorId}/aggregated:
+    get:
+      tags: [Telemetry]
+      summary: Получение агрегированных данных
+      operationId: getAggregatedTelemetry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sensorId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [MINUTE, HOUR, DAY, WEEK, MONTH]
+      responses:
+        '200':
+          description: Агрегированные данные
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TelemetryAggregated'
+
+  # === Command Endpoints ===
+  /commands:
+    post:
+      tags: [Commands]
+      summary: Отправка команды на устройство
+      operationId: sendCommand
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommandRequest'
+      responses:
+        '202':
+          description: Команда принята
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  command_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: "PENDING"
+
+    get:
+      tags: [Commands]
+      summary: Список команд
+      operationId: listCommands
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: device_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, SCHEDULED, PROCESSING, EXECUTED, FAILED, CANCELLED, TIMEOUT]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список команд
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Command'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /commands/{commandId}:
+    get:
+      tags: [Commands]
+      summary: Получение статуса команды
+      operationId: getCommandStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: commandId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Статус команды
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+
+    delete:
+      tags: [Commands]
+      summary: Отмена команды
+      operationId: cancelCommand
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: commandId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Команда отменена
+
+  # === Alert Endpoints ===
+  /alerts:
+    get:
+      tags: [Alerts]
+      summary: Список оповещений
+      operationId: listAlerts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [TRIGGERED, ACKNOWLEDGED, RESOLVED, DISMISSED]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [INFO, WARNING, CRITICAL, EMERGENCY]
+        - name: sensor_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список оповещений
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /alerts/{alertId}/acknowledge:
+    post:
+      tags: [Alerts]
+      summary: Подтверждение оповещения
+      operationId: acknowledgeAlert
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcknowledgeAlertRequest'
+      responses:
+        '200':
+          description: Оповещение подтверждено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+
+  /alerts/{alertId}/resolve:
+    post:
+      tags: [Alerts]
+      summary: Закрытие оповещения
+      operationId: resolveAlert
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAlertRequest'
+      responses:
+        '200':
+          description: Оповещение закрыто
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'

@@ -1,0 +1,50 @@
+@startuml monitoring_components
+
+!include ../c4_templates/C4_Component.puml
+
+title Диаграмма компонентов - Мониторинг датчиков
+
+Container(api_gateway, "API Gateway", "Go / Nginx", "Единая точка входа\nМаршрутизация\nАутентификация")
+
+Container_Boundary(monitoring_internal, "Мониторинг датчиков") {
+    Component(dashboard_service, "Dashboard Service", "Go", "Генерация дашбордов")
+    Component(metrics_aggregator, "Metrics Aggregator", "Go", "Агрегация метрик")
+    Component(alert_service, "Alert Service", "Go", "Обработка алертов")
+    Component(report_generator, "Report Generator", "Go", "Генерация отчетов")
+    Component(websocket_server, "WebSocket Server", "Go", "Реалтайм обновления")
+    Component(event_listener, "Event Listener", "Go", "Прослушивание событий")
+}
+
+' Внешние системы
+ContainerDb(postgres, "База данных", "PostgreSQL")
+ContainerDb(cache, "Кеш", "Redis")
+Container(queue, "Очередь сообщений", "RabbitMQ/Kafka")
+
+' Связи
+Rel(api_gateway, dashboard_service, "Запросы дашбордов", "gRPC/HTTP")
+Rel(api_gateway, websocket_server, "WebSocket подключения", "WebSocket")
+
+' Получение данных
+Rel(dashboard_service, cache, "Читает текущие показания (быстро)", "Redis Protocol")
+Rel(dashboard_service, postgres, "Читает исторические данные", "SQL")
+Rel(dashboard_service, metrics_aggregator, "Запрашивает агрегаты")
+
+' Агрегация
+Rel(metrics_aggregator, postgres, "Агрегирует данные", "SQL")
+Rel(metrics_aggregator, cache, "Кеширует агрегаты", "Redis Protocol")
+
+' Алерты
+Rel(queue, event_listener, "Получает события", "AMQP/Kafka")
+Rel(event_listener, alert_service, "Передает события")
+Rel(alert_service, postgres, "Сохраняет алерты", "SQL")
+Rel(alert_service, websocket_server, "Отправляет уведомления")
+
+' Отчеты
+Rel(report_generator, postgres, "Генерирует отчеты", "SQL")
+Rel(dashboard_service, report_generator, "Запрашивает отчеты")
+
+' Реалтайм
+Rel(websocket_server, cache, "Подписывается на обновления", "Redis Protocol")
+
+SHOW_LEGEND()
+@enduml
